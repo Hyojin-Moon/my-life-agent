@@ -22,7 +22,7 @@ const app = new Hono()
 // 미들웨어
 app.use('*', logger())
 app.use('*', cors({
-  origin: ['http://localhost:3000'],
+  origin: ['http://localhost:5173'],
   credentials: true,
 }))
 

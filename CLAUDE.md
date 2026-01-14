@@ -29,7 +29,7 @@ cd packages/database && pnpm db:seed     # Seed database
 
 # Run individual apps
 cd apps/api && pnpm dev   # API server on port 8080
-cd apps/web && pnpm dev   # Web app on port 3000
+cd apps/web && pnpm dev   # Web app on port 5173
 ```
 
 ## Architecture

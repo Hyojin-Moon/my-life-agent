@@ -22,6 +22,11 @@ interface RecommendationResult {
     reason: string
     score: number
     details?: string
+    // 음식 추천용 추가 필드
+    ingredients?: string
+    recipe?: string
+    cookingTime?: string
+    difficulty?: string
   }>
 }
 
@@ -79,13 +84,22 @@ export class LifeAgent {
 
     const result = await this.client.generateJSON<RecommendationResult>(prompt)
 
-    return result.recommendations.map((rec, index) => ({
-      id: `rec-${Date.now()}-${index}`,
-      name: rec.name,
-      reason: rec.reason,
-      score: rec.score,
-      metadata: rec.details ? { details: rec.details } : undefined,
-    }))
+    return result.recommendations.map((rec, index) => {
+      const metadata: Record<string, string> = {}
+      if (rec.details) metadata.details = rec.details
+      if (rec.ingredients) metadata.ingredients = rec.ingredients
+      if (rec.recipe) metadata.recipe = rec.recipe
+      if (rec.cookingTime) metadata.cookingTime = rec.cookingTime
+      if (rec.difficulty) metadata.difficulty = rec.difficulty
+
+      return {
+        id: `rec-${Date.now()}-${index}`,
+        name: rec.name,
+        reason: rec.reason,
+        score: rec.score,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      }
+    })
   }
 
   async analyzePatterns(): Promise<AnalysisResult> {

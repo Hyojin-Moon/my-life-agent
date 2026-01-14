@@ -33,7 +33,7 @@ export function buildRecommendationPrompt(
   recentRecords?: LifeRecord[]
 ): string {
   const typeLabels = {
-    food: '음식/메뉴',
+    food: '음식 메뉴',
     travel: '여행지',
     exercise: '운동/코스',
   }
@@ -55,7 +55,32 @@ export function buildRecommendationPrompt(
     prompt += `\n\n## 최근 ${typeLabels[type]} 기록\n${recordSummary}`
   }
 
-  prompt += `
+  if (type === 'food') {
+    prompt += `
+
+## 중요 지침
+- 식당이 아닌 **집에서 직접 요리하거나 배달/포장해서 먹을 수 있는 메뉴**를 추천해주세요.
+- 각 메뉴에 대해 주요 재료와 간단한 조리방법을 포함해주세요.
+- 난이도는 초보자도 따라할 수 있는 수준으로 설명해주세요.
+
+## 응답 형식
+다음 JSON 형식으로 3-5개의 메뉴를 추천해주세요:
+{
+  "recommendations": [
+    {
+      "name": "메뉴 이름",
+      "reason": "추천 이유 (사용자의 취향과 연결해서 설명)",
+      "score": 0.95,
+      "details": "메뉴에 대한 간단한 설명",
+      "ingredients": "주요 재료 (예: 돼지고기 300g, 양파 1개, 간장 2큰술)",
+      "recipe": "간단한 조리 순서 (1. 재료 손질 2. 볶기 3. 양념 추가 등)",
+      "cookingTime": "예상 조리 시간 (예: 20분)",
+      "difficulty": "난이도 (쉬움/보통/어려움)"
+    }
+  ]
+}`
+  } else {
+    prompt += `
 
 ## 응답 형식
 다음 JSON 형식으로 3-5개의 추천을 제공해주세요:
@@ -69,6 +94,7 @@ export function buildRecommendationPrompt(
     }
   ]
 }`
+  }
 
   return prompt
 }
