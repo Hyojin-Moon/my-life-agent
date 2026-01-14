@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Star, Utensils, MapPin, Dumbbell, Calendar } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Star, Utensils, MapPin, Dumbbell, Calendar, Loader2, Trash2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 type RecordType = 'food' | 'travel' | 'exercise' | 'other'
 
@@ -15,44 +16,47 @@ interface Record {
   date: string
 }
 
-const mockRecords: Record[] = [
-  {
-    id: '1',
-    type: 'food',
-    title: '강남 이탈리안 레스토랑',
-    description: '파스타가 정말 맛있었다. 트러플 크림 파스타 강추!',
-    rating: 5,
-    tags: ['이탈리안', '파스타', '강남', '데이트'],
-    date: '2024-01-15',
-  },
-  {
-    id: '2',
-    type: 'exercise',
-    title: '한강 러닝 10km',
-    description: '날씨가 좋아서 기분 좋게 뛰었다. 페이스 5:30',
-    rating: 4,
-    tags: ['러닝', '한강', '10km'],
-    date: '2024-01-14',
-  },
-  {
-    id: '3',
-    type: 'travel',
-    title: '제주도 여행',
-    description: '올레길 걷기 최고! 다음엔 우도도 가보고 싶다',
-    rating: 5,
-    tags: ['제주도', '올레길', '자연'],
-    date: '2024-01-10',
-  },
-]
-
 export default function RecordsPage() {
-  const [records] = useState<Record[]>(mockRecords)
+  const [records, setRecords] = useState<Record[]>([])
   const [showForm, setShowForm] = useState(false)
   const [filter, setFilter] = useState<RecordType | 'all'>('all')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredRecords = filter === 'all'
-    ? records
-    : records.filter((r) => r.type === filter)
+  const fetchRecords = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data: any = await api.getRecords({
+        type: filter === 'all' ? undefined : filter,
+      })
+      setRecords(data.records || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '기록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [filter])
+
+  useEffect(() => {
+    fetchRecords()
+  }, [fetchRecords])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('이 기록을 삭제하시겠습니까?')) return
+
+    try {
+      await api.deleteRecord(id)
+      setRecords((prev) => prev.filter((r) => r.id !== id))
+    } catch (err) {
+      alert('기록 삭제에 실패했습니다.')
+    }
+  }
+
+  const handleRecordCreated = () => {
+    setShowForm(false)
+    fetchRecords()
+  }
 
   const typeConfig = {
     food: { icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900' },
@@ -76,7 +80,7 @@ export default function RecordsPage() {
         </button>
       </div>
 
-      {showForm && <RecordForm onClose={() => setShowForm(false)} />}
+      {showForm && <RecordForm onClose={() => setShowForm(false)} onSuccess={handleRecordCreated} />}
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         <FilterButton
@@ -105,60 +109,84 @@ export default function RecordsPage() {
         </FilterButton>
       </div>
 
-      <div className="space-y-4">
-        {filteredRecords.map((record) => {
-          const { icon: Icon, color, bg } = typeConfig[record.type]
-          return (
-            <div
-              key={record.id}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"
-            >
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-lg ${bg}`}>
-                  <Icon className={`w-6 h-6 ${color}`} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {record.title}
-                    </h3>
-                    <span className="text-sm text-gray-500">{record.date}</span>
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        </div>
+      ) : records.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          아직 기록이 없습니다. 첫 번째 기록을 추가해보세요!
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {records.map((record) => {
+            const { icon: Icon, color, bg } = typeConfig[record.type]
+            return (
+              <div
+                key={record.id}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`p-3 rounded-lg ${bg}`}>
+                    <Icon className={`w-6 h-6 ${color}`} />
                   </div>
-                  {record.rating && (
-                    <div className="flex gap-1 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < record.rating!
-                              ? 'text-yellow-400 fill-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {record.title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">{record.date}</span>
+                        <button
+                          onClick={() => handleDelete(record.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {record.rating && (
+                      <div className="flex gap-1 mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < record.rating!
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {record.description && (
+                      <p className="text-gray-600 dark:text-gray-400 mb-3">
+                        {record.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {record.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
+                        >
+                          #{tag}
+                        </span>
                       ))}
                     </div>
-                  )}
-                  {record.description && (
-                    <p className="text-gray-600 dark:text-gray-400 mb-3">
-                      {record.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {record.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
                   </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -186,7 +214,7 @@ function FilterButton({
   )
 }
 
-function RecordForm({ onClose }: { onClose: () => void }) {
+function RecordForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({
     type: 'food' as RecordType,
     title: '',
@@ -194,13 +222,28 @@ function RecordForm({ onClose }: { onClose: () => void }) {
     rating: 0,
     tags: '',
   })
+  const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: API 호출
-    console.log('Submitting:', form)
-    alert('기록이 저장되었습니다!')
-    onClose()
+    setSubmitting(true)
+
+    try {
+      await api.createRecord({
+        type: form.type,
+        title: form.title,
+        description: form.description || undefined,
+        rating: form.rating || undefined,
+        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
+        date: new Date().toISOString().split('T')[0],
+      })
+      alert('기록이 저장되었습니다!')
+      onSuccess()
+    } catch (err) {
+      alert('기록 저장에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -287,9 +330,11 @@ function RecordForm({ onClose }: { onClose: () => void }) {
         <div className="flex gap-2">
           <button
             type="submit"
-            className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition"
+            disabled={submitting}
+            className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            저장
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {submitting ? '저장 중...' : '저장'}
           </button>
           <button
             type="button"

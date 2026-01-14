@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Utensils, MapPin, Dumbbell, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react'
+import { Sparkles, Utensils, MapPin, Dumbbell, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from 'lucide-react'
+import { api } from '@/lib/api'
 
 type RecommendationType = 'food' | 'travel' | 'exercise'
 
@@ -17,38 +18,40 @@ export default function RecommendationsPage() {
   const [context, setContext] = useState('')
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const getRecommendations = async () => {
     setLoading(true)
-    // TODO: API 호출
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setError(null)
 
-    const mockData: Record<RecommendationType, Recommendation[]> = {
-      food: [
-        { id: '1', name: '된장찌개', reason: '한식을 선호하시고 건강한 식사를 원하시니까요', score: 0.92 },
-        { id: '2', name: '연어 샐러드', reason: '오늘 가벼운 식사가 좋겠어요', score: 0.88 },
-        { id: '3', name: '비빔밥', reason: '다양한 채소로 영양 균형을 맞춰요', score: 0.85 },
-      ],
-      travel: [
-        { id: '1', name: '제주도 올레길', reason: '자연을 좋아하시고 러닝을 즐기시니 추천드려요', score: 0.95 },
-        { id: '2', name: '부산 해운대', reason: '바다 근처 조깅 코스가 좋아요', score: 0.88 },
-        { id: '3', name: '강원도 속초', reason: '설악산 트레킹과 바다 둘 다 즐길 수 있어요', score: 0.82 },
-      ],
-      exercise: [
-        { id: '1', name: '한강 러닝 코스 (10km)', reason: '평소 러닝을 즐기시고 아침 시간대에 맞춰요', score: 0.94 },
-        { id: '2', name: '30분 HIIT 홈트', reason: '시간이 없을 때 효율적인 운동이에요', score: 0.86 },
-        { id: '3', name: '요가 스트레칭', reason: '어제 운동을 하셨으니 가볍게 회복하세요', score: 0.80 },
-      ],
+    try {
+      const data: any = await api.getRecommendations({
+        type,
+        context: context || undefined,
+        limit: 5,
+      })
+      setRecommendations(data.recommendations || [])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '추천을 가져오는데 실패했습니다.'
+      setError(message)
+      // API 에러 시 사용자에게 친절한 메시지 표시
+      if (message.includes('404')) {
+        setError('프로필을 먼저 설정해주세요. 프로필 페이지에서 정보를 입력하면 맞춤 추천을 받을 수 있어요!')
+      } else if (message.includes('503') || message.includes('AI')) {
+        setError('AI 서비스에 연결할 수 없습니다. GEMINI_API_KEY가 설정되어 있는지 확인해주세요.')
+      }
+    } finally {
+      setLoading(false)
     }
-
-    setRecommendations(mockData[type])
-    setLoading(false)
   }
 
   const handleFeedback = async (id: string, liked: boolean) => {
-    // TODO: 피드백 API 호출
-    console.log(`Feedback for ${id}: ${liked ? 'liked' : 'disliked'}`)
-    alert(liked ? '좋아요를 반영했어요! 비슷한 추천을 더 드릴게요.' : '피드백 감사해요! 다음엔 다른 걸 추천할게요.')
+    try {
+      const result: any = await api.sendFeedback(id, liked)
+      alert(result.message || (liked ? '좋아요를 반영했어요!' : '피드백 감사해요!'))
+    } catch (err) {
+      alert('피드백 저장에 실패했습니다.')
+    }
   }
 
   const typeConfig = {
@@ -114,6 +117,15 @@ export default function RecommendationsPage() {
           {loading ? '추천 생성 중...' : '추천 받기'}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <p className="text-yellow-700 dark:text-yellow-300">{error}</p>
+          </div>
+        </div>
+      )}
 
       {recommendations.length > 0 && (
         <div className="space-y-4">

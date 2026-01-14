@@ -1,9 +1,21 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { profileRoutes } from './routes/profile'
-import { recommendationRoutes } from './routes/recommendation'
-import { recordRoutes } from './routes/record'
+import { ProfileRepository, RecordRepository, RecommendationRepository } from '@my-life-agent/database'
+import { LifeAgent } from '@my-life-agent/ai-agent'
+import { createProfileRoutes } from './routes/profile'
+import { createRecommendationRoutes } from './routes/recommendation'
+import { createRecordRoutes } from './routes/record'
+
+// Repository 인스턴스 생성
+const profileRepo = new ProfileRepository()
+const recordRepo = new RecordRepository()
+const recommendationRepo = new RecommendationRepository()
+
+// LifeAgent 팩토리 함수
+const createAgent = () => new LifeAgent({
+  apiKey: process.env.GEMINI_API_KEY || '',
+})
 
 const app = new Hono()
 
@@ -23,14 +35,14 @@ app.get('/', (c) => {
   })
 })
 
-// 라우트 등록
-app.route('/api/profile', profileRoutes)
-app.route('/api/recommendations', recommendationRoutes)
-app.route('/api/records', recordRoutes)
+// 라우트 등록 (의존성 주입)
+app.route('/api/profile', createProfileRoutes(profileRepo))
+app.route('/api/recommendations', createRecommendationRoutes(profileRepo, recordRepo, recommendationRepo, createAgent))
+app.route('/api/records', createRecordRoutes(profileRepo, recordRepo))
 
 const port = process.env.PORT || 8080
 
-console.log(`🚀 Server running at http://localhost:${port}`)
+console.log(`Server running at http://localhost:${port}`)
 
 export default {
   port,

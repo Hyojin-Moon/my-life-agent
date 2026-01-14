@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Save, Plus, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Save, Plus, X, Loader2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
@@ -21,6 +22,40 @@ export default function ProfilePage() {
   })
 
   const [newTag, setNewTag] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // 페이지 로드 시 기존 프로필 조회
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data: any = await api.getProfile()
+        setProfile({
+          name: data.name || '',
+          location: data.location || '',
+          preferences: {
+            food: data.preferences?.food || [],
+            travel: data.preferences?.travel || [],
+            exercise: data.preferences?.exercise || [],
+            allergies: data.preferences?.allergies || [],
+          },
+          routines: {
+            wakeUpTime: data.routines?.wakeUpTime || '07:00',
+            sleepTime: data.routines?.sleepTime || '23:00',
+            exerciseTime: data.routines?.exerciseTime || '',
+          },
+        })
+      } catch (err) {
+        // 프로필이 없는 경우 - 새로 생성 가능
+        console.log('프로필이 없습니다. 새로 생성해주세요.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [])
 
   const addTag = (category: keyof typeof profile.preferences, value: string) => {
     if (value.trim()) {
@@ -46,9 +81,35 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
-    // TODO: API 호출
-    console.log('Saving profile:', profile)
-    alert('프로필이 저장되었습니다!')
+    if (!profile.name.trim()) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      await api.updateProfile({
+        name: profile.name,
+        location: profile.location || undefined,
+        preferences: profile.preferences,
+        routines: profile.routines,
+      })
+      alert('프로필이 저장되었습니다!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '프로필 저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    )
   }
 
   return (
@@ -56,6 +117,12 @@ export default function ProfilePage() {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
         프로필 설정
       </h1>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-8">
         <Section title="기본 정보">
@@ -170,10 +237,15 @@ export default function ProfilePage() {
 
         <button
           onClick={handleSave}
-          className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition flex items-center justify-center gap-2"
+          disabled={saving}
+          className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Save className="w-5 h-5" />
-          프로필 저장
+          {saving ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+          {saving ? '저장 중...' : '프로필 저장'}
         </button>
       </div>
     </div>
