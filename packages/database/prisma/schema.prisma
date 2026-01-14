@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 프로필
+model Profile {
+  id        String   @id @default(uuid())
+  name      String
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  preferences Preference[]
+  routines    Routine?
+  records     Record[]
+  feedbacks   Feedback[]
+}
+
+// 취향 설정 (카테고리별)
+model Preference {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category  String   // food, travel, exercise, allergies, dislikes
+  value     String   // 태그 값
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, category, value])
+}
+
+// 일상 루틴
+model Routine {
+  id           String   @id @default(uuid())
+  profileId    String   @unique
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  wakeUpTime   String?
+  sleepTime    String?
+  workSchedule String?
+  exerciseTime String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 기록
+model Record {
+  id          String   @id @default(uuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  type        String   // food, travel, exercise, other
+  title       String
+  description String?
+  rating      Int?     // 1-5
+  location    String?
+  date        DateTime
+  metadata    String?  // JSON string for additional data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tags RecordTag[]
+}
+
+// 기록 태그
+model RecordTag {
+  id       String @id @default(uuid())
+  recordId String
+  record   Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  tag      String
+
+  @@unique([recordId, tag])
+}
+
+// 추천 히스토리
+model RecommendationHistory {
+  id        String   @id @default(uuid())
+  profileId String
+  type      String   // food, travel, exercise
+  name      String
+  reason    String
+  score     Float
+  context   String?
+  createdAt DateTime @default(now())
+
+  feedback Feedback?
+}
+
+// 피드백
+model Feedback {
+  id               String                @id @default(uuid())
+  profileId        String
+  profile          Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  recommendationId String                @unique
+  recommendation   RecommendationHistory @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  liked            Boolean
+  reason           String?
+  createdAt        DateTime              @default(now())
+}

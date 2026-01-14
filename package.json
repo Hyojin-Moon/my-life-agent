@@ -1,0 +1,25 @@
+{
+  "name": "my-life-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "개인 맞춤형 AI 추천 에이전트 - 여행지, 운동코스, 식사 메뉴 추천",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push",
+    "clean": "turbo clean && rm -rf node_modules",
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "volta": {
+    "node": "24.0.0"
+  }
+}
